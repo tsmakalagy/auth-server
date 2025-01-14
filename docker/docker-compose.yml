@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  flask-server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: flask-server
+    ports:
+      - "5000:5000"
+    environment:
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - SMS_GATEWAY_URL=${SMS_GATEWAY_URL}  # Points to Raspberry Pi
+      - SMTP_SERVER=${SMTP_SERVER}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USERNAME=${SMTP_USERNAME}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - FLASK_ENV=${FLASK_ENV:-production}
+      - FLASK_APP=app.py
+    volumes:
+      - .:/app
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
