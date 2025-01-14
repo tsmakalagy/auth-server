@@ -20,8 +20,8 @@ services:
       - FLASK_ENV=${FLASK_ENV:-production}
       - FLASK_APP=app.py
     volumes:
-      - .:/app
-      - ./logs:/app/logs
+      - ../app:/app
+      - ../logs:/app/logs
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
