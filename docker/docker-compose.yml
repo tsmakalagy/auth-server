@@ -3,11 +3,13 @@ version: '3.8'
 services:
   flask-server:
     build:
-      context: .
+      context: ..
       dockerfile: docker/Dockerfile
     container_name: flask-server
     ports:
       - "5000:5000"
+    env_file:
+      - ../.env 
     environment:
       - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - SMS_GATEWAY_URL=${SMS_GATEWAY_URL}  # Points to Raspberry Pi
