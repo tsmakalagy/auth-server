@@ -3,4 +3,4 @@
 set -e
 
 echo "Starting Flask application..."
-python -m flask run --host=0.0.0.0 --port=5000
+gunicorn --bind 0.0.0.0:5000 --workers 4 --threads 2 "app:app"
