@@ -9,10 +9,14 @@ services:
     ports:
       - "5000:5000"
     env_file:
-      - ../.env    # This is enough to load all environment variables
+      - ../.env
     volumes:
-      - ..:/app    # Use relative path to mount the app directory
-      - ../logs:/app/logs    # Use relative path for logs
+      - ..:/app
+      - ../logs:/app/logs
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_DEBUG=0
+      - PYTHONPATH=/app
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
