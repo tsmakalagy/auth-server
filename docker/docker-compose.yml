@@ -9,21 +9,10 @@ services:
     ports:
       - "5000:5000"
     env_file:
-      - ../.env 
-    environment:
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - SMS_GATEWAY_URL=${SMS_GATEWAY_URL}  # Points to Raspberry Pi
-      - SMTP_SERVER=${SMTP_SERVER}
-      - SMTP_PORT=${SMTP_PORT}
-      - SMTP_USERNAME=${SMTP_USERNAME}
-      - SMTP_PASSWORD=${SMTP_PASSWORD}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_KEY=${SUPABASE_KEY}
-      - FLASK_ENV=${FLASK_ENV:-production}
-      - FLASK_APP=app.py
+      - ../.env    # This is enough to load all environment variables
     volumes:
-      - ../app:/app
-      - ../logs:/app/logs
+      - ..:/app    # Use relative path to mount the app directory
+      - ../logs:/app/logs    # Use relative path for logs
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
