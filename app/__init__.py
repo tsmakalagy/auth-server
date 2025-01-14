@@ -22,15 +22,17 @@ def create_app():
     @app.route('/health')
     def health_check():
         try:
-            # Test Supabase connection
-            supabase_status = bool(supabase_client.auth.get_url())
+            # Test Supabase connection with a simple query
+            supabase_status = False
+            test_query = supabase_client.from_('users').select('*').limit(1).execute()
+            if test_query:
+                supabase_status = True
             
             return jsonify({
                 'status': 'healthy',
                 'timestamp': datetime.utcnow().isoformat(),
                 'service': 'auth-server',
                 'version': '1.0.0',
-                'supabase_connected': supabase_status,
                 'dependencies': {
                     'supabase': 'connected' if supabase_status else 'disconnected'
                 }
@@ -48,7 +50,11 @@ def create_app():
             'service': 'Authentication API',
             'status': 'running',
             'version': '1.0.0',
-            'documentation': '/docs'  # If you add API documentation later
+            'endpoints': {
+                'health': '/health',
+                'email_auth': '/auth/email',
+                'phone_auth': '/auth/phone'
+            }
         })
 
     return app
