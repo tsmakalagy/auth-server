@@ -25,7 +25,7 @@ class Config:
     SMTP_FROM_EMAIL = os.getenv('SMTP_FROM_EMAIL')
     
     # SMS Gateway Settings
-    SMS_GATEWAY_URL = os.getenv('SMS_GATEWAY_URL', 'http://localhost:5001/send-sms')
+    SMS_GATEWAY_URL = os.getenv('SMS_GATEWAY_URL', 'https://sms.godana.mg/send-sms')
     
     # OTP Settings
     OTP_LENGTH = 6
