@@ -34,12 +34,25 @@ class AuthService:
                 return False, "Failed to send verification email", None
 
             # Store verification code
-            self.supabase.table('verification_codes').insert({
-                'email': email,
-                'code': otp,
-                'type': 'email',
-                'expires_at': (datetime.utcnow() + timedelta(minutes=Config.OTP_EXPIRY_MINUTES)).isoformat()
-            }).execute()
+            try:
+                self.supabase.table('verification_codes').insert({
+                    'email': email,
+                    'code': otp,
+                    'name': name,  # Store name for later user creation
+                    'type': 'email',
+                    'expires_at': (datetime.now(pytz.UTC) + timedelta(minutes=Config.OTP_EXPIRY_MINUTES)).isoformat()
+                }).execute()
+            except Exception as e:
+                logger.error(f"Failed to store verification code: {e}")
+                return False, "Failed to create verification code", None
+
+            if not self.email_service.send_verification(email, otp):
+                # Cleanup the stored code if email fails
+                self.supabase.table('verification_codes').delete().match({
+                    'email': email,
+                    'code': otp
+                }).execute()
+                return False, "Failed to send verification email", None
 
             return True, "Verification email sent", {'email': email}
 
@@ -86,56 +99,75 @@ class AuthService:
         import random
         return ''.join(random.choices('0123456789', k=Config.OTP_LENGTH))
 
-    def verify_otp(self, identifier: str, otp: str, auth_type: str) -> Tuple[bool, str, Optional[Dict]]:
-        """Verify OTP for both email and phone."""
+    def verify_otp(self, email: str, otp: str) -> Tuple[bool, str, Optional[Dict]]:
+        """Verify email OTP."""
         try:
             now = datetime.now(pytz.UTC)
+            logger.info(f"Verifying OTP for email: {email}")
+
             # Get verification code
             result = self.supabase.table('verification_codes').select('*').match({
-                auth_type: identifier,
+                'email': email,
                 'code': otp,
                 'verified': False
             }).execute()
 
             if not result.data:
+                logger.warning(f"No verification code found for email: {email}")
                 return False, "Invalid verification code", None
 
             code_data = result.data[0]
             
-            # Check expiry
+            # Parse expiry time
             expires_at = datetime.fromisoformat(code_data['expires_at'])
             if not expires_at.tzinfo:
                 expires_at = pytz.UTC.localize(expires_at)
             
-            # Check expiry
             if expires_at < now:
+                logger.warning(f"Expired code for email: {email}")
                 return False, "Verification code expired", None
-            
-            self.supabase.table('verification_codes').update({
-                'verified': True
-            }).match({
-                'id': code_data['id']
-            }).execute()
+
+            # Update verification status
+            try:
+                self.supabase.table('verification_codes').update({
+                    'verified': True,
+                    'verified_at': now.isoformat()
+                }).match({
+                    'id': code_data['id']
+                }).execute()
+            except Exception as e:
+                logger.error(f"Failed to update verification status: {e}")
+                return False, "Error updating verification status", None
 
             # Create or update user
-            user_data = {
-                auth_type: identifier,
-                f'{auth_type}_verified': True
-            }
+            try:
+                user_data = {
+                    'email': email,
+                    'email_verified': True,
+                    'name': code_data.get('name'),
+                    'updated_at': now.isoformat()
+                }
 
-            user = self._get_or_create_user(user_data)
-            
-            # Generate tokens
-            tokens = self.token_manager.create_tokens(user['id'])
-            
-            # Create session
-            session = self.session_manager.create_session(user['id'])
+                user_response = self.supabase.table('users').upsert(user_data).execute()
+                if not user_response.data:
+                    raise Exception("Failed to create/update user")
+                user = user_response.data[0]
 
-            return True, "Verification successful", {
-                'user': user,
-                'tokens': tokens,
-                'session': session
-            }
+                # Generate access token
+                tokens = self.token_manager.create_tokens(user['id'])
+                
+                # Create session
+                session = self.session_manager.create_session(user['id'])
+
+                return True, "Verification successful", {
+                    'user': user,
+                    'tokens': tokens,
+                    'session': session
+                }
+
+            except Exception as e:
+                logger.error(f"User creation/update error: {e}")
+                return False, "Error creating user account", None
 
         except Exception as e:
             logger.error(f"OTP verification error: {e}")
