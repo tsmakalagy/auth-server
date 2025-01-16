@@ -43,18 +43,20 @@ def register():
 
 @email_auth.route('/verify', methods=['POST'])
 def verify():
-    """Verify email OTP."""
+    """Verify email verification code."""
     data = request.json
     email = data.get('email')
     otp = data.get('otp')
 
-    if not all([email, otp]):
+    if not email or not otp:
         return jsonify({
             'status': 'error',
             'message': 'Email and OTP are required'
         }), 400
 
-    success, message, result = auth_service.verify_otp(email, otp, 'email')
+    # Note: removed the 'email' parameter since it's already in verify_otp
+    success, message, result = auth_service.verify_otp(email, otp)
+    
     return jsonify({
         'status': 'success' if success else 'error',
         'message': message,
