@@ -71,14 +71,24 @@ class AuthService:
             # Generate OTP
             otp = self._generate_otp()
 
-            # Send SMS via gateway
-            response = requests.post(Config.SMS_GATEWAY_URL, json={
+            # Prepare SMS payload
+            sms_payload = {
                 'phone_number': phone,
                 'message': f'Your verification code is: {otp}'
-            })
+            }
+            logger.info(f"Attempting to send SMS with payload: {sms_payload}")
+            logger.info(f"Using SMS Gateway URL: {Config.SMS_GATEWAY_URL}")
+
+            # Send SMS via gateway
+            response = requests.post(
+                Config.SMS_GATEWAY_URL, 
+                json=sms_payload
+            )
+
+            logger.info(f"SMS Gateway Response: Status={response.status_code}, Body={response.text}")
 
             if response.status_code != 200:
-                return False, "Failed to send SMS", None
+                return False, f"Failed to send SMS: {response.text}", None
 
             # Store verification code
             self.supabase.table('verification_codes').insert({
