@@ -7,6 +7,7 @@ from .email_service import EmailService
 from .token_manager import TokenManager
 from .session_manager import SessionManager
 import requests
+import pytz
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +89,7 @@ class AuthService:
     def verify_otp(self, identifier: str, otp: str, auth_type: str) -> Tuple[bool, str, Optional[Dict]]:
         """Verify OTP for both email and phone."""
         try:
+            now = datetime.now(pytz.UTC)
             # Get verification code
             result = self.supabase.table('verification_codes').select('*').match({
                 auth_type: identifier,
@@ -101,8 +103,19 @@ class AuthService:
             code_data = result.data[0]
             
             # Check expiry
-            if datetime.fromisoformat(code_data['expires_at']) < datetime.utcnow():
+            expires_at = datetime.fromisoformat(code_data['expires_at'])
+            if not expires_at.tzinfo:
+                expires_at = pytz.UTC.localize(expires_at)
+            
+            # Check expiry
+            if expires_at < now:
                 return False, "Verification code expired", None
+            
+            self.supabase.table('verification_codes').update({
+                'verified': True
+            }).match({
+                'id': code_data['id']
+            }).execute()
 
             # Create or update user
             user_data = {
