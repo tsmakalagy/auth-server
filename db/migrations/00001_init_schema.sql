@@ -84,79 +84,86 @@ ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;
 
+-- First, drop all existing policies
+DO $$ 
+BEGIN
+  -- login_attempts
+  DROP POLICY IF EXISTS "Allow cleanup of old attempts" ON login_attempts;
+  DROP POLICY IF EXISTS "Allow delete old login attempts" ON login_attempts;
+  DROP POLICY IF EXISTS "anon_insert_login_attempts" ON login_attempts;
+  DROP POLICY IF EXISTS "anon_select_login_attempts" ON login_attempts;
+
+  -- refresh_tokens
+  DROP POLICY IF EXISTS "Allow insert refresh tokens" ON refresh_tokens;
+  DROP POLICY IF EXISTS "Allow update own tokens" ON refresh_tokens;
+  DROP POLICY IF EXISTS "Users can view their own tokens" ON refresh_tokens;
+
+  -- user_sessions
+  DROP POLICY IF EXISTS "Allow delete expired sessions" ON user_sessions;
+  DROP POLICY IF EXISTS "Allow insert own sessions" ON user_sessions;
+  DROP POLICY IF EXISTS "anon_insert_sessions" ON user_sessions;
+  DROP POLICY IF EXISTS "Users can update their own sessions" ON user_sessions;
+  DROP POLICY IF EXISTS "Users can view their own sessions" ON user_sessions;
+
+  -- users
+  DROP POLICY IF EXISTS "Allow anonymous insert" ON users;
+  DROP POLICY IF EXISTS "Allow authenticated update" ON users;
+  DROP POLICY IF EXISTS "anon_select_users" ON users;
+
+  -- verification_codes
+  DROP POLICY IF EXISTS "Allow delete expired verification codes" ON verification_codes;
+  DROP POLICY IF EXISTS "Allow insert during registration" ON verification_codes;
+  DROP POLICY IF EXISTS "anon_update_codes" ON verification_codes;
+  DROP POLICY IF EXISTS "anon_verify_codes" ON verification_codes;
+END $$;
+
+-- Create new standardized policies
+
+-- Login Attempts policies
+CREATE POLICY "login_attempts_all_access" ON login_attempts
+    FOR ALL 
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
+
+-- Refresh Tokens policies
+CREATE POLICY "refresh_tokens_all_access" ON refresh_tokens
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
+
+-- User Sessions policies
+CREATE POLICY "user_sessions_all_access" ON user_sessions
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
+    WITH CHECK (true);
+
 -- Users policies
-CREATE POLICY "Enable insert during registration" ON users
-    FOR INSERT
+CREATE POLICY "users_all_access" ON users
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
     WITH CHECK (true);
 
-CREATE POLICY "Users can view their own data" ON users
-    FOR SELECT
-    USING (auth.uid() = id);
-
-CREATE POLICY "Users can update their own data" ON users
-    FOR UPDATE
-    USING (auth.uid() = id);
-
--- Verification codes policies
-CREATE POLICY "Allow select for verification" ON verification_codes
-    FOR SELECT
-    USING (
-        (NOT verified AND created_at > now() - interval '1 hour')
-        OR (verified AND user_id = auth.uid())
-    );
-
-CREATE POLICY "Allow insert during registration" ON verification_codes
-    FOR INSERT
-    WITH CHECK (
-        code IS NOT NULL
-        AND type IN ('email', 'phone')
-        AND expires_at > now()
-    );
-
--- User sessions policies
-CREATE POLICY "Users can view their own sessions" ON user_sessions
-    FOR SELECT
-    USING (user_id = auth.uid());
-
-CREATE POLICY "Users can update their own sessions" ON user_sessions
-    FOR UPDATE
-    USING (user_id = auth.uid());
-
-CREATE POLICY "Allow insert own sessions" ON user_sessions
-    FOR INSERT
+-- Verification Codes policies
+CREATE POLICY "verification_codes_all_access" ON verification_codes
+    FOR ALL
+    TO authenticated, anon
+    USING (true)
     WITH CHECK (true);
 
--- Login attempts policies
-CREATE POLICY "Enable insert for login attempts" ON login_attempts
-    FOR INSERT
-    WITH CHECK (true);
+-- Grant necessary permissions to anon role
+GRANT ALL ON login_attempts TO anon;
+GRANT ALL ON refresh_tokens TO anon;
+GRANT ALL ON user_sessions TO anon;
+GRANT ALL ON users TO anon;
+GRANT ALL ON verification_codes TO anon;
 
-CREATE POLICY "Enable select for rate limiting" ON login_attempts
-    FOR SELECT
-    USING (true);
-
--- Refresh tokens policies
-CREATE POLICY "Users can view their own tokens" ON refresh_tokens
-    FOR SELECT
-    USING (user_id = auth.uid());
-
-CREATE POLICY "Allow insert refresh tokens" ON refresh_tokens
-    FOR INSERT
-    WITH CHECK (true);
-
-CREATE POLICY "Allow update own tokens" ON refresh_tokens
-    FOR UPDATE
-    USING (user_id = auth.uid());
-
--- Cleanup policies
-CREATE POLICY "Allow delete expired verification codes" ON verification_codes
-    FOR DELETE
-    USING (expires_at < now());
-
-CREATE POLICY "Allow delete expired sessions" ON user_sessions
-    FOR DELETE
-    USING (ended_at < now() - interval '30 days');
-
-CREATE POLICY "Allow delete old login attempts" ON login_attempts
-    FOR DELETE
-    USING (created_at < now() - interval '24 hours');
+-- Enable RLS on all tables
+ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE refresh_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE verification_codes ENABLE ROW LEVEL SECURITY;
