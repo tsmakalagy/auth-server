@@ -11,7 +11,7 @@ class TokenManager:
     def __init__(self):
         self.supabase = supabase_client
 
-    async def create_tokens(self, user_id: str) -> Dict[str, str]:
+    def create_tokens(self, user_id: str) -> Dict[str, str]:
         """Create access and refresh tokens."""
         try:
             # Create access token
@@ -37,7 +37,7 @@ class TokenManager:
             )
 
             # Store refresh token
-            await self.supabase.table('refresh_tokens').insert({
+            self.supabase.table('refresh_tokens').insert({
                 'user_id': user_id,
                 'token': refresh_token,
                 'expires_at': (datetime.now(timezone.utc) + Config.JWT_REFRESH_TOKEN_EXPIRES).isoformat()
@@ -52,7 +52,7 @@ class TokenManager:
             logger.error(f"Error creating tokens: {e}")
             raise
 
-    async def verify_token(self, token: str, token_type: str = 'access') -> Optional[Dict]:
+    def verify_token(self, token: str, token_type: str = 'access') -> Optional[Dict]:
         """Verify token and return payload if valid."""
         try:
             payload = jwt.decode(
@@ -73,14 +73,14 @@ class TokenManager:
             logger.warning(f"Invalid token: {e}")
             return None
 
-    async def refresh_access_token(self, refresh_token: str) -> Optional[Dict[str, str]]:
+    def refresh_access_token(self, refresh_token: str) -> Optional[Dict[str, str]]:
         """Create new access token using refresh token."""
-        payload = await self.verify_token(refresh_token, 'refresh')
+        payload = self.verify_token(refresh_token, 'refresh')
         if not payload:
             return None
 
         # Check if refresh token is valid in database
-        result = await self.supabase.table('refresh_tokens').select('*').match({
+        result = self.supabase.table('refresh_tokens').select('*').match({
             'token': refresh_token,
             'is_revoked': False
         }).execute()
@@ -88,4 +88,4 @@ class TokenManager:
         if not result.data:
             return None
 
-        return await self.create_tokens(payload['user_id'])
+        return self.create_tokens(payload['user_id'])

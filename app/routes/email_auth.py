@@ -1,15 +1,15 @@
 # auth/routes/email_auth.py
 from flask import Blueprint, request, jsonify
-from ..auth_service import AuthService
-from ..utils.validators import validate_email
-from ..utils.rate_limiter import check_rate_limit
+from ..auth.auth_service import AuthService
+from ..auth.utils.rate_limiter import check_rate_limit, log_attempt, get_remaining_attempts
+from ..auth.utils.validators import validate_email
+from ..config import Config
 
 email_auth = Blueprint('email_auth', __name__)
 auth_service = AuthService()
 
 @email_auth.route('/register', methods=['POST'])
-async def register():
-    """Register with email."""
+def register():
     data = request.json
     email = data.get('email')
     name = data.get('name', '')
@@ -20,21 +20,29 @@ async def register():
             'message': 'Invalid email format'
         }), 400
 
-    if not await check_rate_limit(email, request.remote_addr):
+    if not check_rate_limit(email, request.remote_addr):
+        remaining_time = Config.RATE_LIMIT_WINDOW
         return jsonify({
             'status': 'error',
-            'message': 'Too many attempts, please try again later'
+            'message': f'Too many attempts. Please try again in {remaining_time} seconds',
+            'remaining_attempts': 0,
+            'wait_time': remaining_time
         }), 429
 
-    success, message, result = await auth_service.register_with_email(email, name)
+    success, message, result = auth_service.register_with_email(email, name)
+    
+    # Log the attempt
+    log_attempt(email, request.remote_addr, success)
+    
     return jsonify({
         'status': 'success' if success else 'error',
         'message': message,
-        'data': result
+        'data': result,
+        'remaining_attempts': get_remaining_attempts(email) if not success else None
     }), 200 if success else 400
 
 @email_auth.route('/verify', methods=['POST'])
-async def verify():
+def verify():
     """Verify email OTP."""
     data = request.json
     email = data.get('email')
@@ -46,7 +54,7 @@ async def verify():
             'message': 'Email and OTP are required'
         }), 400
 
-    success, message, result = await auth_service.verify_otp(email, otp, 'email')
+    success, message, result = auth_service.verify_otp(email, otp, 'email')
     return jsonify({
         'status': 'success' if success else 'error',
         'message': message,

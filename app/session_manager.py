@@ -10,10 +10,10 @@ class SessionManager:
     def __init__(self):
         self.supabase = supabase_client
 
-    async def create_session(self, user_id: str, device_info: Dict = None) -> Optional[str]:
+    def create_session(self, user_id: str, device_info: Dict = None) -> Optional[str]:
         """Create new user session."""
         try:
-            result = await self.supabase.table('user_sessions').insert({
+            result = self.supabase.table('user_sessions').insert({
                 'user_id': user_id,
                 'device_info': device_info,
                 'is_active': True,
@@ -28,10 +28,10 @@ class SessionManager:
             logger.error(f"Error creating session: {e}")
             raise
 
-    async def get_active_sessions(self, user_id: str) -> List[Dict]:
+    def get_active_sessions(self, user_id: str) -> List[Dict]:
         """Get all active sessions for user."""
         try:
-            result = await self.supabase.table('user_sessions').select('*').match({
+            result = self.supabase.table('user_sessions').select('*').match({
                 'user_id': user_id,
                 'is_active': True
             }).execute()
@@ -42,10 +42,10 @@ class SessionManager:
             logger.error(f"Error getting sessions: {e}")
             return []
 
-    async def end_session(self, session_id: str):
+    def end_session(self, session_id: str):
         """End a specific session."""
         try:
-            await self.supabase.table('user_sessions').update({
+            self.supabase.table('user_sessions').update({
                 'is_active': False,
                 'ended_at': datetime.now(timezone.utc).isoformat()
             }).match({'id': session_id}).execute()
@@ -54,10 +54,10 @@ class SessionManager:
             logger.error(f"Error ending session: {e}")
             raise
 
-    async def update_session_activity(self, session_id: str):
+    def update_session_activity(self, session_id: str):
         """Update last activity time for session."""
         try:
-            await self.supabase.table('user_sessions').update({
+            self.supabase.table('user_sessions').update({
                 'last_activity': datetime.now(timezone.utc).isoformat()
             }).match({'id': session_id}).execute()
 

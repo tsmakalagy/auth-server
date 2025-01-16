@@ -15,7 +15,7 @@ class EmailService:
         self.password = Config.SMTP_PASSWORD
         self.from_email = Config.SMTP_FROM_EMAIL
 
-    async def send_verification(self, to_email: str, otp: str) -> bool:
+    def send_verification(self, to_email: str, otp: str) -> bool:
         """Send verification email with OTP."""
         try:
             msg = MIMEMultipart()

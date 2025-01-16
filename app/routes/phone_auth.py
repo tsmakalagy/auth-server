@@ -8,13 +8,13 @@ phone_auth = Blueprint('phone_auth', __name__)
 auth_service = AuthService()
 
 @phone_auth.route('/register', methods=['POST'])
-async def register():
+def register():
     """Register with phone number."""
     # Similar to email registration but with phone validation
     pass
 
 @phone_auth.route('/verify', methods=['POST'])
-async def verify():
+def verify():
     """Verify phone OTP."""
     # Similar to email verification but for phone
     pass

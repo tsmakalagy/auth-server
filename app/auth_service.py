@@ -17,11 +17,11 @@ class AuthService:
         self.token_manager = TokenManager()
         self.session_manager = SessionManager()
 
-    async def register_with_email(self, email: str, name: str) -> Tuple[bool, str, Optional[Dict]]:
+    def register_with_email(self, email: str, name: str) -> Tuple[bool, str, Optional[Dict]]:
         """Handle email registration."""
         try:
             # Check if email exists
-            user = await self.supabase.table('users').select('*').eq('email', email).execute()
+            user = self.supabase.table('users').select('*').eq('email', email).execute()
             if user.data:
                 return False, "Email already registered", None
 
@@ -29,11 +29,11 @@ class AuthService:
             otp = self._generate_otp()
             
             # Send verification email
-            if not await self.email_service.send_verification(email, otp):
+            if not self.email_service.send_verification(email, otp):
                 return False, "Failed to send verification email", None
 
             # Store verification code
-            await self.supabase.table('verification_codes').insert({
+            self.supabase.table('verification_codes').insert({
                 'email': email,
                 'code': otp,
                 'type': 'email',
@@ -46,11 +46,11 @@ class AuthService:
             logger.error(f"Email registration error: {e}")
             return False, str(e), None
 
-    async def register_with_phone(self, phone: str, name: str) -> Tuple[bool, str, Optional[Dict]]:
+    def register_with_phone(self, phone: str, name: str) -> Tuple[bool, str, Optional[Dict]]:
         """Handle phone registration."""
         try:
             # Check if phone exists
-            user = await self.supabase.table('users').select('*').eq('phone_number', phone).execute()
+            user = self.supabase.table('users').select('*').eq('phone_number', phone).execute()
             if user.data:
                 return False, "Phone number already registered", None
 
@@ -67,7 +67,7 @@ class AuthService:
                 return False, "Failed to send SMS", None
 
             # Store verification code
-            await self.supabase.table('verification_codes').insert({
+            self.supabase.table('verification_codes').insert({
                 'phone': phone,
                 'code': otp,
                 'type': 'phone',
@@ -85,11 +85,11 @@ class AuthService:
         import random
         return ''.join(random.choices('0123456789', k=Config.OTP_LENGTH))
 
-    async def verify_otp(self, identifier: str, otp: str, auth_type: str) -> Tuple[bool, str, Optional[Dict]]:
+    def verify_otp(self, identifier: str, otp: str, auth_type: str) -> Tuple[bool, str, Optional[Dict]]:
         """Verify OTP for both email and phone."""
         try:
             # Get verification code
-            result = await self.supabase.table('verification_codes').select('*').match({
+            result = self.supabase.table('verification_codes').select('*').match({
                 auth_type: identifier,
                 'code': otp,
                 'verified': False
@@ -110,13 +110,13 @@ class AuthService:
                 f'{auth_type}_verified': True
             }
 
-            user = await self._get_or_create_user(user_data)
+            user = self._get_or_create_user(user_data)
             
             # Generate tokens
-            tokens = await self.token_manager.create_tokens(user['id'])
+            tokens = self.token_manager.create_tokens(user['id'])
             
             # Create session
-            session = await self.session_manager.create_session(user['id'])
+            session = self.session_manager.create_session(user['id'])
 
             return True, "Verification successful", {
                 'user': user,
@@ -128,7 +128,7 @@ class AuthService:
             logger.error(f"OTP verification error: {e}")
             return False, str(e), None
 
-    async def _get_or_create_user(self, user_data: Dict) -> Dict:
+    def _get_or_create_user(self, user_data: Dict) -> Dict:
         """Get existing user or create new one."""
         # Implementation details would go here
         pass
