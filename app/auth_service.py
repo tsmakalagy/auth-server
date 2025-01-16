@@ -165,6 +165,72 @@ class AuthService:
         except Exception as e:
             logger.error(f"OTP verification error: {e}")
             return False, str(e), None
+        
+    def verify_phone_otp(self, phone: str, otp: str) -> Tuple[bool, str, Optional[Dict]]:
+        """Verify phone OTP."""
+        try:
+            now = datetime.now(pytz.UTC)
+            logger.info(f"Verifying OTP for phone: {phone}")
+
+            # Get verification code
+            result = self.supabase.table('verification_codes').select('*').match({
+                'phone': phone,
+                'code': otp,
+                'verified': False
+            }).execute()
+
+            if not result.data:
+                logger.warning(f"No verification code found for phone: {phone}")
+                return False, "Invalid verification code", None
+
+            code_data = result.data[0]
+            
+            # Parse expiry time
+            expires_at = datetime.fromisoformat(code_data['expires_at'])
+            if not expires_at.tzinfo:
+                expires_at = pytz.UTC.localize(expires_at)
+            
+            if expires_at < now:
+                logger.warning(f"Expired code for phone: {phone}")
+                return False, "Verification code expired", None
+
+            # Update verification status
+            self.supabase.table('verification_codes').update({
+                'verified': True,
+                'verified_at': now.isoformat()
+            }).match({
+                'id': code_data['id']
+            }).execute()
+
+            # Create or update user
+            user_data = {
+                'phone_number': phone,
+                'phone_verified': True,
+                'name': code_data.get('name'),
+                'auth_type': 'phone',  # Note this is 'phone' instead of 'email'
+                'updated_at': now.isoformat()
+            }
+
+            user_response = self.supabase.table('users').upsert(user_data).execute()
+            if not user_response.data:
+                raise Exception("Failed to create/update user")
+            user = user_response.data[0]
+
+            # Generate access token
+            tokens = self.token_manager.create_tokens(user['id'])
+            
+            # Create session
+            session = self.session_manager.create_session(user['id'])
+
+            return True, "Verification successful", {
+                'user': user,
+                'tokens': tokens,
+                'session': session
+            }
+
+        except Exception as e:
+            logger.error(f"OTP verification error: {e}")
+            return False, str(e), None
     
 
     def _get_or_create_user(self, user_data: Dict) -> Dict:
