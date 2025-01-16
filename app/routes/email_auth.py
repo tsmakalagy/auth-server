@@ -1,8 +1,8 @@
 # auth/routes/email_auth.py
 from flask import Blueprint, request, jsonify
-from ..auth.auth_service import AuthService
-from ..auth.utils.rate_limiter import check_rate_limit, log_attempt, get_remaining_attempts
-from ..auth.utils.validators import validate_email
+from ..auth_service import AuthService
+from ..utils.rate_limiter import check_rate_limit, log_attempt, get_remaining_attempts
+from ..utils.validators import validate_email
 from ..config import Config
 
 email_auth = Blueprint('email_auth', __name__)
