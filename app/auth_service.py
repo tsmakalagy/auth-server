@@ -73,7 +73,7 @@ class AuthService:
 
             # Prepare SMS payload
             sms_payload = {
-                'phone_number': phone,
+                'number': phone,
                 'message': f'Your verification code is: {otp}'
             }
             logger.info(f"Attempting to send SMS with payload: {sms_payload}")

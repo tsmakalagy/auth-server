@@ -1,6 +1,7 @@
 # auth/routes/phone_auth.py
 from flask import Blueprint, request, jsonify
 from ..auth_service import AuthService
+from ..config import Config
 from ..utils.rate_limiter import check_rate_limit, log_attempt, get_remaining_attempts
 from ..utils.validators import validate_phone
 
