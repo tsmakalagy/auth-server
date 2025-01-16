@@ -8,6 +8,7 @@ from .token_manager import TokenManager
 from .session_manager import SessionManager
 import requests
 import pytz
+from flask import current_app
 
 logger = logging.getLogger(__name__)
 
@@ -83,8 +84,8 @@ class AuthService:
                 'number': phone,
                 'message': f'Your verification code is: {otp}'
             }
-            logger.info(f"Attempting to send SMS with payload: {sms_payload}")
-            logger.info(f"Using SMS Gateway URL: {Config.SMS_GATEWAY_URL}")
+            current_app.logger.info(f"Attempting to send SMS with payload: {sms_payload}")
+            current_app.logger.info(f"Using SMS Gateway URL: {Config.SMS_GATEWAY_URL}")
 
             # Send SMS via gateway
             response = requests.post(
@@ -92,7 +93,7 @@ class AuthService:
                 json=sms_payload
             )
 
-            logger.info(f"SMS Gateway Response: Status={response.status_code}, Body={response.text}")
+            current_app.logger.info(f"SMS Gateway Response: Status={response.status_code}, Body={response.text}")
 
             if response.status_code != 200:
                 return False, f"Failed to send SMS: {response.text}", None

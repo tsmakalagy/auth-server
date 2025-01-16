@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from datetime import datetime
 from .config import Config, supabase_client
+import logging
 
 def create_app():
     app = Flask(__name__)
@@ -10,6 +11,12 @@ def create_app():
     
     # Initialize JWT
     jwt = JWTManager(app)
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+    )
+    app.logger.setLevel(logging.INFO)
     
     # Register blueprints
     from .routes.email_auth import email_auth
