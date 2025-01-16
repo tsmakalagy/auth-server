@@ -63,6 +63,13 @@ class AuthService:
     def register_with_phone(self, phone: str, name: str) -> Tuple[bool, str, Optional[Dict]]:
         """Handle phone registration."""
         try:
+
+            try:
+                ping_response = requests.get('https://sms.godana.mg/health')
+                logger.info(f"SMS Gateway health check: {ping_response.status_code}")
+            except Exception as e:
+                logger.error(f"SMS Gateway not accessible: {e}")
+
             # Check if phone exists
             user = self.supabase.table('users').select('*').eq('phone_number', phone).execute()
             if user.data:
