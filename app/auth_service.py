@@ -136,11 +136,12 @@ class AuthService:
                 'id': code_data['id']
             }).execute()
 
-            # Create or update user
+            # Create or update user with required fields
             user_data = {
                 'email': email,
                 'email_verified': True,
                 'name': code_data.get('name'),
+                'auth_type': 'email',  # Add this line
                 'updated_at': now.isoformat()
             }
 
