@@ -64,13 +64,6 @@ class AuthService:
     def register_with_phone(self, phone: str, name: str) -> Tuple[bool, str, Optional[Dict]]:
         """Handle phone registration."""
         try:
-
-            try:
-                ping_response = requests.get('https://sms.godana.mg/health')
-                logger.info(f"SMS Gateway health check: {ping_response.status_code}")
-            except Exception as e:
-                logger.error(f"SMS Gateway not accessible: {e}")
-
             # Check if phone exists
             user = self.supabase.table('users').select('*').eq('phone_number', phone).execute()
             if user.data:
@@ -79,37 +72,73 @@ class AuthService:
             # Generate OTP
             otp = self._generate_otp()
 
-            # Prepare SMS payload
             sms_payload = {
                 'number': phone,
-                'message': f'Your verification code is: {otp}'
+                'message': f'Your OTP is: {otp}'
             }
-            current_app.logger.info(f"Attempting to send SMS with payload: {sms_payload}")
-            current_app.logger.info(f"Using SMS Gateway URL: {Config.SMS_GATEWAY_URL}")
+            
+            # Add request headers
+            headers = {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'User-Agent': 'auth-server/1.0'
+            }
 
-            # Send SMS via gateway
-            response = requests.post(
-                Config.SMS_GATEWAY_URL, 
-                json=sms_payload
-            )
+            current_app.logger.info("=== SMS Gateway Request Details ===")
+            current_app.logger.info(f"URL: {Config.SMS_GATEWAY_URL}")
+            current_app.logger.info(f"Headers: {headers}")
+            current_app.logger.info(f"Payload: {sms_payload}")
 
-            current_app.logger.info(f"SMS Gateway Response: Status={response.status_code}, Body={response.text}")
+            try:
+                response = requests.post(
+                    Config.SMS_GATEWAY_URL,
+                    json=sms_payload,
+                    headers=headers,
+                    timeout=10
+                )
+                
+                current_app.logger.info("=== SMS Gateway Response Details ===")
+                current_app.logger.info(f"Status Code: {response.status_code}")
+                current_app.logger.info(f"Response Headers: {dict(response.headers)}")
+                current_app.logger.info(f"Response Body: {response.text}")
 
-            if response.status_code != 200:
-                return False, f"Failed to send SMS: {response.text}", None
+                # Test request with simpler message
+                test_payload = {
+                    'number': phone,
+                    'message': 'Test message'
+                }
+                
+                current_app.logger.info("=== Making test request ===")
+                test_response = requests.post(
+                    Config.SMS_GATEWAY_URL,
+                    json=test_payload,
+                    headers=headers,
+                    timeout=10
+                )
+                current_app.logger.info(f"Test Status Code: {test_response.status_code}")
+                current_app.logger.info(f"Test Response: {test_response.text}")
 
-            # Store verification code
-            self.supabase.table('verification_codes').insert({
-                'phone': phone,
-                'code': otp,
-                'type': 'phone',
-                'expires_at': (datetime.utcnow() + timedelta(minutes=Config.OTP_EXPIRY_MINUTES)).isoformat()
-            }).execute()
+                response_data = response.json()
+                if response_data.get('status') != 'success':
+                    return False, f"Failed to send SMS: {response.text}", None
 
-            return True, "Verification SMS sent", {'phone': phone}
+                # Store verification code
+                self.supabase.table('verification_codes').insert({
+                    'phone': phone,
+                    'code': otp,
+                    'type': 'phone',
+                    'name': name,
+                    'expires_at': (datetime.now(pytz.UTC) + timedelta(minutes=Config.OTP_EXPIRY_MINUTES)).isoformat()
+                }).execute()
+
+                return True, "Verification SMS sent", {'phone': phone}
+
+            except requests.exceptions.RequestException as e:
+                current_app.logger.error(f"SMS Gateway Connection Error: {str(e)}")
+                return False, "SMS service connection error", None
 
         except Exception as e:
-            logger.error(f"Phone registration error: {e}")
+            current_app.logger.error(f"Phone registration error: {e}")
             return False, str(e), None
 
     def _generate_otp(self) -> str:
